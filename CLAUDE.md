@@ -68,17 +68,22 @@ la santé (poids, vaccins, vermifuges, rendez-vous, rappels).
 - Ports publiés sur `127.0.0.1` uniquement.
 - Une variable définie dans le compose écrase `backend/.env.local` et
   `.env.test` : ne pas y mettre de secret ni de `DATABASE_URL`.
-- `vendor/` et `node_modules/` sont des volumes : après un changement de
-  dépendances, `docker compose exec backend composer install` ou
+- `vendor/` et `node_modules/` sont sur l'hôte (ignorés par git) : après un
+  changement de dépendances, `docker compose exec backend composer install` ou
   `docker compose exec frontend npm install`.
+- `backend` et `frontend` tournent avec `HOST_UID` et `HOST_GID` : les fichiers
+  qu'ils créent appartiennent à l'utilisateur de l'hôte.
 - Après un changement d'environnement dans le compose : `docker compose up -d`,
   pas `restart`.
 - `DB_PASSWORD` n'est appliqué par Postgres qu'à la création du volume.
 
 ## Installation d'un nouveau poste
 
-1. `cp .env.example .env` et `cp backend/.env.local.example backend/.env.local`,
-   puis remplir `backend/.env.local`.
+1. `cp .env.example .env`, `cp backend/.env.local.example backend/.env.local`
+   et `cp backend/.env.test.local.example backend/.env.test.local`, puis
+   remplir `backend/.env.local` et `backend/.env.test.local`. Ce dernier pointe
+   vers `my_teckel` : Doctrine ajoute le suffixe `_test` en environnement de
+   test.
 2. `docker compose up -d`
 3. `docker compose exec backend composer install`
 4. Bases de dev et de test :
