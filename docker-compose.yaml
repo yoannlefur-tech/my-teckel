@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: my_teckel
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeMe}
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "app", "-d", "my_teckel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer
+    ports:
+      - "127.0.0.1:8083:8080"
+    depends_on:
+      - db
+
+  backend:
+    build: ./docker/backend
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      COMPOSER_HOME: /tmp/composer
+    ports:
+      - "127.0.0.1:8003:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./docker/frontend
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HOME: /tmp
+      npm_config_cache: /tmp/.npm
+    ports:
+      - "127.0.0.1:5175:5173"
+    volumes:
+      - ./frontend:/app
+
+volumes:
+  postgres_data:
