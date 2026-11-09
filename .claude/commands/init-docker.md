@@ -3,7 +3,7 @@
 ## Contexte
 
 Monorepo "my-teckel" (git initialisé, CLAUDE.md à lire d'abord, branche
-`init-docker` créée depuis `develop`). Ce prompt ne prépare que
+`init-project` créée depuis `develop`). Ce prompt ne prépare que
 l'infrastructure : `backend/` et `frontend/` n'existent pas encore, les
 prompts init-backend et init-frontend s'en chargeront. WSL2, commandes via
 `docker compose exec`.
@@ -12,7 +12,7 @@ prompts init-backend et init-frontend s'en chargeront. WSL2, commandes via
 
 1. `docker-compose.yaml` avec quatre services :
    - `db` : `postgres:16`, base `my_teckel`, utilisateur `app`, mot de passe
-     `${DB_PASSWORD:-changeme}`, volume nommé `postgres_data`, healthcheck
+     `${DB_PASSWORD:-changeMe}`, volume nommé `postgres_data`, healthcheck
      `pg_isready -U app -d my_teckel`.
    - `adminer` : dépend de `db`.
    - `backend` : image construite depuis `docker/backend`, dossier
@@ -31,7 +31,7 @@ prompts init-backend et init-frontend s'en chargeront. WSL2, commandes via
    `php -S 0.0.0.0:8000 -t public public/index.php`.
 5. `docker/frontend/Dockerfile` : `node:22-alpine`, commande
    `npm install && npm run dev -- --host 0.0.0.0`.
-6. `.env.example` (`DB_PASSWORD=changeme`, `HOST_UID=1000`, `HOST_GID=1000`),
+6. `.env.example` (`DB_PASSWORD=changeMe`, `HOST_UID=1000`, `HOST_GID=1000`),
    un `.env` ignoré avec mon vrai UID et GID (`id -u`, `id -g`), et un
    `.gitignore` racine qui ignore `.env`, `docker-compose.override.yaml` et
    `backup_*.sql`.
