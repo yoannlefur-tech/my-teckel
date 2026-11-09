@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Kernel;
 
 // With a router script, php -S sends every request to Symfony, including the
