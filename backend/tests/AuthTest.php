@@ -91,11 +91,15 @@ final class AuthTest extends WebTestCase
         self::assertSame('lax', $cookie->getSameSite());
         self::assertTrue($cookie->isHttpOnly());
 
+        $expired_token = $this->expiredAccessToken();
+        $this->me($expired_token);
+        self::assertResponseStatusCodeSame(401);
+
         $body = $this->post(
             '/api/auth/refresh',
             'application/json',
             ['refresh_token' => $refresh_token],
-            ['HTTP_AUTHORIZATION' => 'Bearer '.$this->expiredAccessToken()],
+            ['HTTP_AUTHORIZATION' => 'Bearer '.$expired_token],
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -121,6 +125,29 @@ final class AuthTest extends WebTestCase
 
         $this->post('/api/auth/refresh', 'application/json', $payload);
         self::assertResponseStatusCodeSame(401);
+    }
+
+    public function test_me_returns_the_connected_user_without_the_hash(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+        $body = $this->me($this->login(self::EMAIL, self::PASSWORD)['token']);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(self::EMAIL, $body['email']);
+        self::assertSame(['ROLE_USER'], $body['roles']);
+        self::assertNotEmpty($body['id']);
+        self::assertArrayNotHasKey('password', $body);
+    }
+
+    /** @return array<string, mixed> */
+    private function me(string $access_token): array
+    {
+        $this->client->request('GET', '/api/me', server: [
+            'HTTP_ACCEPT' => 'application/ld+json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$access_token,
+        ]);
+
+        return json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
     }
 
     private function expiredAccessToken(): string

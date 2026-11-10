@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\NotExposed;
 use ApiPlatform\Metadata\Post;
 use App\Repository\UserRepository;
+use App\State\MeProvider;
 use App\State\UserPasswordHasherProcessor;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -26,6 +28,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new NotExposed(uriTemplate: '/users/{id}'),
+        new Get(uriTemplate: '/me', provider: MeProvider::class),
         new Post(uriTemplate: '/auth/register', processor: UserPasswordHasherProcessor::class),
     ],
     normalizationContext: ['groups' => ['user:read']],

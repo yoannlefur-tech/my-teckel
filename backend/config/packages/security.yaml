@@ -36,15 +36,11 @@ security:
                 check_path: /api/auth/refresh
             logout:
                 path: /api/auth/logout
-        main:
-            lazy: true
+        api:
+            pattern: ^/api
+            stateless: true
             provider: app_user_provider
-
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
-
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
+            jwt: ~
 
     # Note: Only the *first* matching rule is applied
     access_control:
