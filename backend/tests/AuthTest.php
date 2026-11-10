@@ -139,6 +139,13 @@ final class AuthTest extends WebTestCase
         self::assertArrayNotHasKey('password', $body);
     }
 
+    public function test_protected_routes_answer_401_without_a_token(): void
+    {
+        $this->client->request('GET', '/api/me', server: ['HTTP_ACCEPT' => 'application/ld+json']);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
     /** @return array<string, mixed> */
     private function me(string $access_token): array
     {

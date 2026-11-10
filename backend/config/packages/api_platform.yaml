@@ -1,6 +1,11 @@
 api_platform:
     title: Hello API Platform
     version: 1.0.0
+    swagger:
+        http_auth:
+            JWT:
+                scheme: bearer
+                bearerFormat: JWT
     defaults:
         stateless: true
         cache_headers:
