@@ -94,6 +94,17 @@ la santé (poids, vaccins, vermifuges, rendez-vous, rappels).
    `backend/.env.local` :
    `docker compose exec backend bin/console lexik:jwt:generate-keypair`.
 
+## Authentification frontend
+
+- L'access token reste en mémoire dans `src/api/client.ts`, jamais dans le
+  stockage du navigateur. Au rechargement, un refresh silencieux le restaure
+  grâce au cookie HttpOnly.
+- Tout appel protégé passe par `apiFetch` : sur un 401 hors `/api/auth/*`, un
+  seul refresh partagé puis un seul rejeu. Si le refresh échoue, la session est
+  vidée.
+- Ajouter une route protégée : la déclarer dans `src/App.tsx`, sous
+  `<Route element={<ProtectedRoute />}>`.
+
 ## Limites connues
 
 - L'inscription permet l'énumération d'emails : un email déjà pris est signalé.
