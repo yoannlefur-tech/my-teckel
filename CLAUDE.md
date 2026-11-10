@@ -90,3 +90,12 @@ la santé (poids, vaccins, vermifuges, rendez-vous, rappels).
    `docker compose exec backend bin/console doctrine:migrations:migrate`, puis
    `doctrine:database:create --env=test` et `doctrine:migrations:migrate
    --env=test`.
+5. Clés JWT de dev, après avoir choisi `JWT_PASSPHRASE` dans
+   `backend/.env.local` :
+   `docker compose exec backend bin/console lexik:jwt:generate-keypair`.
+
+## Limites connues
+
+- L'inscription permet l'énumération d'emails : un email déjà pris est signalé.
+- L'inscription n'a pas de limitation de débit.
+- Pas de vérification d'email ni de mot de passe oublié.
