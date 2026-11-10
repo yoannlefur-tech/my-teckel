@@ -25,6 +25,17 @@ security:
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
             login_throttling: null
+        # Without the jwt authenticator, so that an expired access token cannot get in the way.
+        # POST only: the logout listener does not look at the method.
+        token:
+            pattern: ^/api/auth/(register|refresh|logout)$
+            methods: [POST]
+            stateless: true
+            provider: app_user_provider
+            refresh_jwt:
+                check_path: /api/auth/refresh
+            logout:
+                path: /api/auth/logout
         main:
             lazy: true
             provider: app_user_provider

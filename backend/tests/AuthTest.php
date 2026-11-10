@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
+use App\Entity\RefreshToken;
+use Lexik\Bundle\JWTAuthenticationBundle\Encoder\JWTEncoderInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -79,6 +81,54 @@ final class AuthTest extends WebTestCase
         self::assertResponseStatusCodeSame(429);
     }
 
+    public function test_refresh_works_with_an_expired_access_token(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+        $refresh_token = $this->login(self::EMAIL, self::PASSWORD)['refresh_token'];
+
+        $cookie = $this->client->getResponse()->headers->getCookies()[0];
+        self::assertSame('/api/auth', $cookie->getPath());
+        self::assertSame('lax', $cookie->getSameSite());
+        self::assertTrue($cookie->isHttpOnly());
+
+        $body = $this->post(
+            '/api/auth/refresh',
+            'application/json',
+            ['refresh_token' => $refresh_token],
+            ['HTTP_AUTHORIZATION' => 'Bearer '.$this->expiredAccessToken()],
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertNotEmpty($body['token']);
+        self::assertSame($refresh_token, $body['refresh_token']);
+
+        $stored = static::getContainer()->get('doctrine')->getRepository(RefreshToken::class)->findAll();
+        self::assertNotSame($refresh_token, $stored[0]->getRefreshToken());
+    }
+
+    public function test_logout_invalidates_the_refresh_token(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+        $payload = ['refresh_token' => $this->login(self::EMAIL, self::PASSWORD)['refresh_token']];
+
+        $this->post(
+            '/api/auth/logout',
+            'application/json',
+            $payload,
+            ['HTTP_AUTHORIZATION' => 'Bearer '.$this->expiredAccessToken()],
+        );
+        self::assertResponseStatusCodeSame(200);
+
+        $this->post('/api/auth/refresh', 'application/json', $payload);
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    private function expiredAccessToken(): string
+    {
+        return static::getContainer()->get(JWTEncoderInterface::class)
+            ->encode(['username' => self::EMAIL, 'exp' => time() - 60]);
+    }
+
     /** @return array<string, mixed> */
     private function register(string $email, string $password): array
     {
@@ -93,15 +143,16 @@ final class AuthTest extends WebTestCase
 
     /**
      * @param array<string, string> $payload
+     * @param array<string, string> $headers
      *
      * @return array<string, mixed>
      */
-    private function post(string $uri, string $format, array $payload): array
+    private function post(string $uri, string $format, array $payload, array $headers = []): array
     {
         $this->client->request(
             'POST',
             $uri,
-            server: ['CONTENT_TYPE' => $format, 'HTTP_ACCEPT' => $format],
+            server: ['CONTENT_TYPE' => $format, 'HTTP_ACCEPT' => $format, ...$headers],
             content: json_encode($payload, JSON_THROW_ON_ERROR),
         );
 
