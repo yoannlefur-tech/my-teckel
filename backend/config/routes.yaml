@@ -9,3 +9,8 @@
 
 controllers:
     resource: routing.controllers
+
+# Handled by the firewall, but the router must know the path or it answers 404 first.
+api_auth_login:
+    path: /api/auth/login
+    methods: [POST]

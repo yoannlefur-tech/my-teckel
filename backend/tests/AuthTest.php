@@ -17,6 +17,8 @@ final class AuthTest extends WebTestCase
     protected function setUp(): void
     {
         $this->client = static::createClient();
+        // The limiter state lives in the filesystem cache and outlives a test run.
+        static::getContainer()->get('cache.rate_limiter')->clear();
     }
 
     public function test_register_creates_an_account_without_exposing_the_password(): void
@@ -47,14 +49,60 @@ final class AuthTest extends WebTestCase
         self::assertSame('password', $body['violations'][0]['propertyPath']);
     }
 
+    public function test_login_returns_an_access_token_whatever_the_email_case(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+        $body = $this->login('REX@example.com', self::PASSWORD);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertNotEmpty($body['token']);
+    }
+
+    public function test_login_refuses_a_wrong_password(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+        $this->login(self::EMAIL, 'wrong-password');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function test_login_answers_429_after_repeated_failures(): void
+    {
+        $this->register(self::EMAIL, self::PASSWORD);
+
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            $this->login(self::EMAIL, 'wrong-password');
+            self::assertResponseStatusCodeSame(401);
+        }
+
+        $this->login(self::EMAIL, self::PASSWORD);
+        self::assertResponseStatusCodeSame(429);
+    }
+
     /** @return array<string, mixed> */
     private function register(string $email, string $password): array
     {
+        return $this->post('/api/auth/register', 'application/ld+json', ['email' => $email, 'password' => $password]);
+    }
+
+    /** @return array<string, mixed> */
+    private function login(string $email, string $password): array
+    {
+        return $this->post('/api/auth/login', 'application/json', ['email' => $email, 'password' => $password]);
+    }
+
+    /**
+     * @param array<string, string> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private function post(string $uri, string $format, array $payload): array
+    {
         $this->client->request(
             'POST',
-            '/api/auth/register',
-            server: ['CONTENT_TYPE' => 'application/ld+json', 'HTTP_ACCEPT' => 'application/ld+json'],
-            content: json_encode(['email' => $email, 'password' => $password], JSON_THROW_ON_ERROR),
+            $uri,
+            server: ['CONTENT_TYPE' => $format, 'HTTP_ACCEPT' => $format],
+            content: json_encode($payload, JSON_THROW_ON_ERROR),
         );
 
         return json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
