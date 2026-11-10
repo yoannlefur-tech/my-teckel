@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterAll, afterEach, beforeAll, expect, test, vi } from 'vitest'
 import {
   apiFetch,
@@ -13,11 +13,22 @@ import {
 } from './api/client.ts'
 import App from './App.tsx'
 import AuthProvider from './auth/AuthProvider.tsx'
+import { safeDestination } from './auth/safeDestination.ts'
 
 const server = setupServer()
 const noSession = http.post('/api/auth/refresh', () =>
   new HttpResponse(null, { status: 401 }),
 )
+
+const signIn = [
+  http.post('/api/auth/login', () => HttpResponse.json({ token: 'access' })),
+  http.get('/api/me', () => HttpResponse.json({ email: 'rex@example.com' })),
+]
+
+function CurrentLocation() {
+  const { pathname, search } = useLocation()
+  return <output data-testid="location">{pathname + search}</output>
+}
 
 function renderApp(path: string, client = new QueryClient()) {
   render(
@@ -25,6 +36,7 @@ function renderApp(path: string, client = new QueryClient()) {
       <MemoryRouter initialEntries={[path]}>
         <AuthProvider>
           <App />
+          <CurrentLocation />
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -105,6 +117,39 @@ test('clears the session without looping when the refresh fails', async () => {
 
   await apiFetch('/api/me')
   expect(authorizations[1]).toBeNull()
+})
+
+test('redirects an anonymous visitor to login, then back to the destination', async () => {
+  server.use(noSession, ...signIn)
+  renderApp('/?x=1')
+
+  await submitForm('Se connecter')
+  expect(screen.getByTestId('location')).toHaveTextContent('/login')
+
+  await screen.findByText('rex@example.com')
+  expect(screen.getByTestId('location')).toHaveTextContent('/?x=1')
+})
+
+test('only accepts internal destinations', () => {
+  expect(safeDestination('/chiens?x=1')).toBe('/chiens?x=1')
+  expect(safeDestination('//evil.com')).toBe('/')
+  expect(safeDestination('/\\evil.com')).toBe('/')
+  expect(safeDestination('https://evil.com')).toBe('/')
+})
+
+test('signs in after registration and shows the email on the home page', async () => {
+  server.use(
+    noSession,
+    ...signIn,
+    http.post('/api/auth/register', () =>
+      HttpResponse.json({ email: 'rex@example.com' }, { status: 201 }),
+    ),
+  )
+  renderApp('/register')
+
+  await submitForm('Créer mon compte')
+
+  expect(await screen.findByText('rex@example.com')).toBeInTheDocument()
 })
 
 test('shows the login error matching the API status', async () => {

@@ -1,6 +1,7 @@
 import { Alert, Button, Container, Link, Stack, TextField } from '@mui/material'
 import { useForm } from 'react-hook-form'
-import { Navigate, Link as RouterLink } from 'react-router-dom'
+import { Navigate, Link as RouterLink, useLocation } from 'react-router-dom'
+import { safeDestination } from './safeDestination.ts'
 import { useAuth, type Credentials } from './useAuth.ts'
 
 const REQUIRED = 'Ce champ est requis.'
@@ -11,6 +12,7 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 export default function LoginPage() {
   const { status, login } = useAuth()
+  const { state } = useLocation()
   const {
     register,
     handleSubmit,
@@ -19,7 +21,7 @@ export default function LoginPage() {
   } = useForm<Credentials>()
 
   if (status === 'authenticated') {
-    return <Navigate to="/" replace />
+    return <Navigate to={safeDestination(state?.from)} replace />
   }
 
   const onSubmit = async (values: Credentials) => {
