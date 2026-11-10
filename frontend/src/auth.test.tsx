@@ -152,6 +152,24 @@ test('signs in after registration and shows the email on the home page', async (
   expect(await screen.findByText('rex@example.com')).toBeInTheDocument()
 })
 
+test('logs out locally and clears the cache even if the API is unreachable', async () => {
+  server.use(
+    http.post('/api/auth/refresh', () =>
+      HttpResponse.json({ token: 'access' }),
+    ),
+    ...signIn,
+    http.post('/api/auth/logout', () => HttpResponse.error()),
+  )
+  const client = new QueryClient()
+  client.setQueryData(['dogs'], ['Rex'])
+  renderApp('/', client)
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Se déconnecter' }))
+
+  expect(await screen.findByLabelText('Email')).toBeInTheDocument()
+  expect(client.getQueryCache().getAll()).toEqual([])
+})
+
 test('shows the login error matching the API status', async () => {
   const statuses = [401, 429]
   server.use(
